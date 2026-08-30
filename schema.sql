@@ -126,28 +126,28 @@ ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 -- ============================================================
 
 -- Shop Settings: Public read
-CREATE POLICY "Public read access" ON shop_settings FOR SELECT USING (true);
-CREATE POLICY "Auth write access" ON shop_settings FOR ALL USING (auth.role() = 'authenticated');
+CREATE POLICY "shop_settings_public_read" ON shop_settings FOR SELECT USING (true);
+CREATE POLICY "shop_settings_auth_write" ON shop_settings FOR ALL USING (auth.role() = 'authenticated');
 
 -- Products: Public read
-CREATE POLICY "Public read access" ON products FOR SELECT USING (true);
-CREATE POLICY "Auth write access" ON products FOR ALL USING (auth.role() = 'authenticated');
+CREATE POLICY "products_public_read" ON products FOR SELECT USING (true);
+CREATE POLICY "products_auth_write" ON products FOR ALL USING (auth.role() = 'authenticated');
 
 -- Customers: Public read
-CREATE POLICY "Public read access" ON customers FOR SELECT USING (true);
-CREATE POLICY "Auth write access" ON customers FOR ALL USING (auth.role() = 'authenticated');
+CREATE POLICY "customers_public_read" ON customers FOR SELECT USING (true);
+CREATE POLICY "customers_auth_write" ON customers FOR ALL USING (auth.role() = 'authenticated');
 
 -- Invoices: Public read
-CREATE POLICY "Public read access" ON invoices FOR SELECT USING (true);
-CREATE POLICY "Auth write access" ON invoices FOR ALL USING (auth.role() = 'authenticated');
+CREATE POLICY "invoices_public_read" ON invoices FOR SELECT USING (true);
+CREATE POLICY "invoices_auth_write" ON invoices FOR ALL USING (auth.role() = 'authenticated');
 
 -- Invoice Items: Public read
-CREATE POLICY "Public read access" ON invoice_items FOR SELECT USING (true);
-CREATE POLICY "Auth write access" ON invoice_items FOR ALL USING (auth.role() = 'authenticated');
+CREATE POLICY "invoice_items_public_read" ON invoice_items FOR SELECT USING (true);
+CREATE POLICY "invoice_items_auth_write" ON invoice_items FOR ALL USING (auth.role() = 'authenticated');
 
 -- Audit Logs: Public read
-CREATE POLICY "Public read access" ON audit_logs FOR SELECT USING (true);
-CREATE POLICY "Auth write access" ON audit_logs FOR ALL USING (auth.role() = 'authenticated');
+CREATE POLICY "audit_logs_public_read" ON audit_logs FOR SELECT USING (true);
+CREATE POLICY "audit_logs_auth_write" ON audit_logs FOR ALL USING (auth.role() = 'authenticated');
 
 -- ============================================================
 -- STORAGE BUCKET FOR SHOP LOGO
@@ -220,11 +220,16 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
+  -- NOTE: In a single UPDATE, all column references in SET use OLD values.
+  -- So total_due must be computed using the NEW values explicitly:
+  -- new_total_purchase = total_purchase + p_purchase_amount
+  -- new_total_paid     = total_paid + p_paid_amount
+  -- new_total_due      = new_total_purchase - new_total_paid
   UPDATE customers
   SET total_purchase = total_purchase + p_purchase_amount,
-      total_paid = total_paid + p_paid_amount,
-      total_due = total_purchase + p_paid_amount - total_paid,
-      updated_at = NOW()
+      total_paid     = total_paid + p_paid_amount,
+      total_due      = (total_purchase + p_purchase_amount) - (total_paid + p_paid_amount),
+      updated_at     = NOW()
   WHERE id = p_customer_id;
 END;
 $$;
