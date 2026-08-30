@@ -1,6 +1,7 @@
 -- ============================================================
 -- AGRI POS - SUPABASE DATABASE SCHEMA
 -- Production-ready POS and Inventory Management System
+-- Idempotent: safe to run multiple times (IF NOT EXISTS everywhere)
 -- ============================================================
 
 -- Enable UUID extension
@@ -9,7 +10,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- ============================================================
 -- SHOP SETTINGS TABLE
 -- ============================================================
-CREATE TABLE shop_settings (
+CREATE TABLE IF NOT EXISTS shop_settings (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name VARCHAR(255) NOT NULL,
   address TEXT,
@@ -22,7 +23,7 @@ CREATE TABLE shop_settings (
 -- ============================================================
 -- PRODUCTS TABLE
 -- ============================================================
-CREATE TABLE products (
+CREATE TABLE IF NOT EXISTS products (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name VARCHAR(255) NOT NULL,
   category VARCHAR(50) NOT NULL CHECK (category IN ('pesticide', 'fertilizer', 'seed')),
@@ -34,13 +35,13 @@ CREATE TABLE products (
 );
 
 -- Create index for fast product search
-CREATE INDEX idx_products_name ON products(name);
-CREATE INDEX idx_products_category ON products(category);
+CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
+CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
 
 -- ============================================================
 -- CUSTOMERS TABLE
 -- ============================================================
-CREATE TABLE customers (
+CREATE TABLE IF NOT EXISTS customers (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name VARCHAR(255) NOT NULL,
   phone VARCHAR(20) NOT NULL UNIQUE,
@@ -53,12 +54,12 @@ CREATE TABLE customers (
 );
 
 -- Create index for phone search (critical for fast lookup)
-CREATE INDEX idx_customers_phone ON customers(phone);
+CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
 
 -- ============================================================
 -- INVOICES TABLE
 -- ============================================================
-CREATE TABLE invoices (
+CREATE TABLE IF NOT EXISTS invoices (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
   customer_name VARCHAR(255),
@@ -71,12 +72,12 @@ CREATE TABLE invoices (
 );
 
 -- Create index for invoice date queries
-CREATE INDEX idx_invoices_created_at ON invoices(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_invoices_created_at ON invoices(created_at DESC);
 
 -- ============================================================
 -- INVOICE ITEMS TABLE
 -- ============================================================
-CREATE TABLE invoice_items (
+CREATE TABLE IF NOT EXISTS invoice_items (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   invoice_id UUID REFERENCES invoices(id) ON DELETE CASCADE,
   product_id UUID REFERENCES products(id) ON DELETE SET NULL,
@@ -88,12 +89,12 @@ CREATE TABLE invoice_items (
 );
 
 -- Create index for invoice items lookup
-CREATE INDEX idx_invoice_items_invoice_id ON invoice_items(invoice_id);
+CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice_id ON invoice_items(invoice_id);
 
 -- ============================================================
 -- AUDIT LOGS TABLE
 -- ============================================================
-CREATE TABLE audit_logs (
+CREATE TABLE IF NOT EXISTS audit_logs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   table_name VARCHAR(50) NOT NULL,
   record_id UUID NOT NULL,
@@ -105,9 +106,9 @@ CREATE TABLE audit_logs (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_audit_logs_table ON audit_logs(table_name);
-CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at DESC);
-CREATE INDEX idx_audit_logs_record_id ON audit_logs(record_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_table ON audit_logs(table_name);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_record_id ON audit_logs(record_id);
 
 -- ============================================================
 -- ROW LEVEL SECURITY (RLS) - Allow public read access
@@ -122,30 +123,42 @@ ALTER TABLE invoice_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================
--- RLS POLICIES - Public read, authenticated write
+-- RLS POLICIES - Drop if exists, then recreate
 -- ============================================================
 
--- Shop Settings: Public read
+-- Shop Settings
+DROP POLICY IF EXISTS "shop_settings_public_read" ON shop_settings;
+DROP POLICY IF EXISTS "shop_settings_auth_write" ON shop_settings;
 CREATE POLICY "shop_settings_public_read" ON shop_settings FOR SELECT USING (true);
 CREATE POLICY "shop_settings_auth_write" ON shop_settings FOR ALL USING (auth.role() = 'authenticated');
 
--- Products: Public read
+-- Products
+DROP POLICY IF EXISTS "products_public_read" ON products;
+DROP POLICY IF EXISTS "products_auth_write" ON products;
 CREATE POLICY "products_public_read" ON products FOR SELECT USING (true);
 CREATE POLICY "products_auth_write" ON products FOR ALL USING (auth.role() = 'authenticated');
 
--- Customers: Public read
+-- Customers
+DROP POLICY IF EXISTS "customers_public_read" ON customers;
+DROP POLICY IF EXISTS "customers_auth_write" ON customers;
 CREATE POLICY "customers_public_read" ON customers FOR SELECT USING (true);
 CREATE POLICY "customers_auth_write" ON customers FOR ALL USING (auth.role() = 'authenticated');
 
--- Invoices: Public read
+-- Invoices
+DROP POLICY IF EXISTS "invoices_public_read" ON invoices;
+DROP POLICY IF EXISTS "invoices_auth_write" ON invoices;
 CREATE POLICY "invoices_public_read" ON invoices FOR SELECT USING (true);
 CREATE POLICY "invoices_auth_write" ON invoices FOR ALL USING (auth.role() = 'authenticated');
 
--- Invoice Items: Public read
+-- Invoice Items
+DROP POLICY IF EXISTS "invoice_items_public_read" ON invoice_items;
+DROP POLICY IF EXISTS "invoice_items_auth_write" ON invoice_items;
 CREATE POLICY "invoice_items_public_read" ON invoice_items FOR SELECT USING (true);
 CREATE POLICY "invoice_items_auth_write" ON invoice_items FOR ALL USING (auth.role() = 'authenticated');
 
--- Audit Logs: Public read
+-- Audit Logs
+DROP POLICY IF EXISTS "audit_logs_public_read" ON audit_logs;
+DROP POLICY IF EXISTS "audit_logs_auth_write" ON audit_logs;
 CREATE POLICY "audit_logs_public_read" ON audit_logs FOR SELECT USING (true);
 CREATE POLICY "audit_logs_auth_write" ON audit_logs FOR ALL USING (auth.role() = 'authenticated');
 
@@ -153,9 +166,11 @@ CREATE POLICY "audit_logs_auth_write" ON audit_logs FOR ALL USING (auth.role() =
 -- STORAGE BUCKET FOR SHOP LOGO
 -- ============================================================
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('shop-logos', 'shop-logos', true);
+VALUES ('shop-logos', 'shop-logos', true)
+ON CONFLICT (id) DO NOTHING;
 
-CREATE POLICY "Public Access to shop logos" ON storage.objects
+DROP POLICY IF EXISTS "shop_logos_public_access" ON storage.objects;
+CREATE POLICY "shop_logos_public_access" ON storage.objects
   FOR ALL USING (bucket_id = 'shop-logos');
 
 -- ============================================================
@@ -220,11 +235,6 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
-  -- NOTE: In a single UPDATE, all column references in SET use OLD values.
-  -- So total_due must be computed using the NEW values explicitly:
-  -- new_total_purchase = total_purchase + p_purchase_amount
-  -- new_total_paid     = total_paid + p_paid_amount
-  -- new_total_due      = new_total_purchase - new_total_paid
   UPDATE customers
   SET total_purchase = total_purchase + p_purchase_amount,
       total_paid     = total_paid + p_paid_amount,
