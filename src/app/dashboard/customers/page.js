@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
+import { useAuth } from '@/context/AuthContext'
 
 export default function CustomersPage() {
   const { t, formatCurrency } = useLanguage()
+  const { businessId } = useAuth()
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -20,11 +22,9 @@ export default function CustomersPage() {
       setLoading(true)
       setError(null)
       try {
-        const { data, error } = await supabase
-          .from('customers')
-          .select('*')
-          .order('name')
-        
+        let q = supabase.from('customers').select('*').order('name')
+        if (businessId) q = q.eq('business_id', businessId)
+        const { data, error } = await q
         if (error) throw error
         if (mounted) setCustomers(data || [])
       } catch (err) {
@@ -36,19 +36,16 @@ export default function CustomersPage() {
 
     loadCustomers()
     return () => { mounted = false }
-  }, [])
+  }, [businessId])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
       if (editingCustomer) {
-        const { error } = await supabase
-          .from('customers')
-          .update(formData)
-          .eq('id', editingCustomer.id)
+        const { error } = await supabase.from('customers').update(formData).eq('id', editingCustomer.id)
         if (error) throw error
       } else {
-        const { error } = await supabase.from('customers').insert([formData])
+        const { error } = await supabase.from('customers').insert([{ ...formData, business_id: businessId }])
         if (error) throw error
       }
       setShowModal(false)
@@ -61,11 +58,11 @@ export default function CustomersPage() {
 
   const loadCustomersAgain = async () => {
     try {
-      const { data } = await supabase.from('customers').select('*').order('name')
+      let q = supabase.from('customers').select('*').order('name')
+      if (businessId) q = q.eq('business_id', businessId)
+      const { data } = await q
       setCustomers(data || [])
-    } catch (err) {
-      console.error(err)
-    }
+    } catch (err) { console.error(err) }
   }
 
   const handleEdit = (customer) => {

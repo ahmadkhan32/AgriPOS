@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
 import { Plus, Search, Edit2, Trash2, Package, X, Save } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
 
 export default function ProductsPage() {
   const { t, formatCurrency, getUnit } = useLanguage()
+  const { businessId } = useAuth()
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -28,11 +30,9 @@ export default function ProductsPage() {
       setLoading(true)
       setError(null)
       try {
-        const { data, error } = await supabase
-          .from('products')
-          .select('*')
-          .order('name')
-        
+        let q = supabase.from('products').select('*').order('name')
+        if (businessId) q = q.eq('business_id', businessId)
+        const { data, error } = await q
         if (error) throw error
         if (mounted) setProducts(data || [])
       } catch (err) {
@@ -45,7 +45,7 @@ export default function ProductsPage() {
     loadProducts()
 
     return () => { mounted = false }
-  }, [])
+  }, [businessId])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -54,6 +54,7 @@ export default function ProductsPage() {
         ...formData,
         price: parseFloat(formData.price),
         stock_quantity: parseFloat(formData.stock_quantity),
+        business_id: businessId,
       }
 
       if (editingProduct) {
@@ -77,11 +78,11 @@ export default function ProductsPage() {
 
   const loadProductsAgain = async () => {
     try {
-      const { data } = await supabase.from('products').select('*').order('name')
+      let q = supabase.from('products').select('*').order('name')
+      if (businessId) q = q.eq('business_id', businessId)
+      const { data } = await q
       setProducts(data || [])
-    } catch (err) {
-      console.error(err)
-    }
+    } catch (err) { console.error(err) }
   }
 
   const handleEdit = (product) => {

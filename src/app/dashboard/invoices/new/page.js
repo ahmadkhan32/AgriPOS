@@ -4,9 +4,11 @@ import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
+import { useAuth } from '@/context/AuthContext'
 
 export default function NewInvoicePage() {
   const { t, formatCurrency } = useLanguage()
+  const { businessId } = useAuth()
   const [products, setProducts] = useState([])
   const [customers, setCustomers] = useState([])
   const [customerPhone, setCustomerPhone] = useState('')
@@ -36,7 +38,9 @@ export default function NewInvoicePage() {
   }
 
   const loadProducts = async () => {
-    const { data } = await supabase.from('products').select('*').order('name')
+    let q = supabase.from('products').select('*').order('name')
+    if (businessId) q = q.eq('business_id', businessId)
+    const { data } = await q
     setProducts(data || [])
   }
 
@@ -111,12 +115,14 @@ export default function NewInvoicePage() {
       const { data: invoice, error: invoiceError } = await supabase
         .from('invoices')
         .insert([{
+          business_id: businessId,
           customer_name: customerName,
           customer_phone: customerPhone,
           customer_address: customerAddress,
           total_amount: total,
           paid_amount: paidAmount,
-          due_amount: due
+          due_amount: due,
+          discount_amount: calculateDiscount(),
         }])
         .select()
         .single()

@@ -4,10 +4,12 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
+import { useAuth } from '@/context/AuthContext'
 import jsPDF from 'jspdf'
 
 export default function InvoicesPage() {
   const { t, formatCurrency } = useLanguage()
+  const { businessId } = useAuth()
   const [invoices, setInvoices] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -24,8 +26,8 @@ export default function InvoicesPage() {
       setError(null)
       try {
         const [invoicesRes, settingsRes] = await Promise.all([
-          supabase.from('invoices').select('*').order('created_at', { ascending: false }),
-          supabase.from('shop_settings').select('*').limit(1)
+          supabase.from('invoices').select('*').eq('business_id', businessId).order('created_at', { ascending: false }),
+          supabase.from('shop_settings').select('*').eq('business_id', businessId).limit(1)
         ])
 
         if (invoicesRes.error) throw invoicesRes.error
@@ -60,13 +62,11 @@ export default function InvoicesPage() {
   const searchInvoices = async (query) => {
     setSearchQuery(query)
     if (query.length < 3) {
-      const { data } = await supabase.from('invoices').select('*').order('created_at', { ascending: false })
+      const { data } = await supabase.from('invoices').select('*').eq('business_id', businessId).order('created_at', { ascending: false })
       setInvoices(data || [])
       return
     }
-    const { data } = await supabase
-      .from('invoices')
-      .select('*')
+    const { data } = await supabase.from('invoices').select('*').eq('business_id', businessId)
       .or(`customer_phone.ilike.%${query}%,customer_name.ilike.%${query}%`)
       .order('created_at', { ascending: false })
     setInvoices(data || [])

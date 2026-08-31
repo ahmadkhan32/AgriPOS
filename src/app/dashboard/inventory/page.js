@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
+import { useAuth } from '@/context/AuthContext'
 
 export default function InventoryPage() {
   const { t, formatCurrency } = useLanguage()
+  const { businessId } = useAuth()
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -20,10 +22,9 @@ export default function InventoryPage() {
       setLoading(true)
       setError(null)
       try {
-        const { data, error } = await supabase
-          .from('products')
-          .select('*')
-          .order('name')
+        let q = supabase.from('products').select('*').order('name')
+        if (businessId) q = q.eq('business_id', businessId)
+        const { data, error } = await q
         
         if (error) throw error
         if (mounted) setProducts(data || [])
@@ -36,15 +37,15 @@ export default function InventoryPage() {
 
     loadProducts()
     return () => { mounted = false }
-  }, [])
+  }, [businessId])
 
   const loadProductsAgain = async () => {
     try {
-      const { data } = await supabase.from('products').select('*').order('name')
+      let q = supabase.from('products').select('*').order('name')
+      if (businessId) q = q.eq('business_id', businessId)
+      const { data } = await q
       setProducts(data || [])
-    } catch (err) {
-      console.error(err)
-    }
+    } catch (err) { console.error(err) }
   }
 
   const startEdit = (product) => {
