@@ -7,10 +7,9 @@ export async function POST(request) {
     const formatCurrency = (amount) => {
       const num = amount || 0
       if (language === 'bn') {
-        const bnDigits = {'0':'০','1':'১','2':'২','3':'৩','4':'৪','5':'৫','6':'৬','7':'৭','8':'৮','9':'৯'}
-        return Math.round(num).toString().split('').map(d => bnDigits[d] || d).join('') + ' টাকা'
+        return 'PKR ' + Math.round(num).toLocaleString()
       }
-      return '৳ ' + Math.round(num).toLocaleString()
+      return 'PKR ' + Math.round(num).toLocaleString()
     }
 
     const invoiceItems = invoice.items || []

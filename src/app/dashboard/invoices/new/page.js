@@ -309,7 +309,7 @@ export default function NewInvoicePage() {
                     onChange={(e) => setDiscountType(e.target.value)}
                     className="px-3 py-2 border rounded-lg text-sm bg-white"
                   >
-                    <option value="fixed">৳ Fixed</option>
+                    <option value="fixed">PKR Fixed</option>
                     <option value="percentage">% Percent</option>
                   </select>
                   <input

@@ -79,7 +79,7 @@ const translations = {
     saving: 'Saving...',
     searchByPhone: 'Search by phone...',
     searchByCustomer: 'Search by customer...',
-    taka: 'Tk',
+    taka: 'PKR',
   },
   bn: {
     dashboard: 'ড্যাশবোর্ড',
@@ -157,7 +157,7 @@ const translations = {
     saving: 'সংরক্ষণ হচ্ছে...',
     searchByPhone: 'ফোন দিয়ে খুঁজুন...',
     searchByCustomer: 'গ্রাহক দিয়ে খুঁজুন...',
-    taka: 'টাকা',
+    taka: 'PKR',
   }
 }
 
@@ -187,7 +187,7 @@ export function LanguageProvider({ children }) {
 
   const formatCurrency = (amount) => {
     const num = amount || 0
-    return '৳ ' + Math.round(num).toLocaleString()
+    return 'PKR ' + Math.round(num).toLocaleString()
   }
 
   const getUnit = (unit) => unit
@@ -210,7 +210,7 @@ export function useLanguage() {
       language: 'en', 
       toggleLanguage: () => {}, 
       t: (key) => key,
-      formatCurrency: (amount) => '৳ ' + (amount || 0),
+      formatCurrency: (amount) => 'PKR ' + (amount || 0),
       getUnit: (unit) => unit
     }
   }
