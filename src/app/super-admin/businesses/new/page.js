@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
-import { ArrowLeft, Building2, Loader2, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, Building2, Loader2, CheckCircle2, UserCircle } from 'lucide-react'
 
 export default function NewBusinessPage() {
   const router = useRouter()
@@ -18,8 +18,8 @@ export default function NewBusinessPage() {
     phone: '',
     address: '',
     plan_id: 'business',
-    admin_email: '',
     admin_name: '',
+    admin_email: '',
     admin_password: '',
   })
   const [error, setError] = useState('')
@@ -50,54 +50,18 @@ export default function NewBusinessPage() {
     setLoading(true)
     setError('')
     try {
-      // 1. Create business record
-      const { data: biz, error: bizErr } = await supabase
-        .from('businesses')
-        .insert([{
-          name: form.name,
-          business_code: form.business_code.toUpperCase(),
-          email: form.email,
-          phone: form.phone,
-          address: form.address,
-          plan_id: form.plan_id,
-          status: 'trial',
-        }])
-        .select()
-        .single()
+      const response = await fetch('/api/admin/businesses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      })
 
-      if (bizErr) throw bizErr
+      const data = await response.json()
 
-      // 2. Create admin role for this business
-      const { data: adminRole, error: roleErr } = await supabase
-        .from('roles')
-        .insert([{
-          business_id: biz.id,
-          name: 'Admin',
-          description: 'Full access to all features',
-          is_system: true,
-        }])
-        .select()
-        .single()
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create business')
+      }
 
-      if (roleErr) throw roleErr
-
-      // 3. Create main branch
-      await supabase.from('branches').insert([{
-        business_id: biz.id,
-        name: 'Main Branch',
-        is_main: true,
-      }])
-
-      // 4. Create shop settings
-      await supabase.from('shop_settings').insert([{
-        business_id: biz.id,
-        name: form.name,
-        phone: form.phone,
-        address: form.address,
-      }])
-
-      // Note: Creating the Supabase Auth user requires admin API key
-      // For now, show success and instruct admin to register separately
       setSuccess(true)
 
       setTimeout(() => {
@@ -118,14 +82,14 @@ export default function NewBusinessPage() {
         </div>
         <h2 className="text-2xl font-bold text-white mb-4">Business Created!</h2>
         <p className="text-slate-400 mb-2">Business Code: <strong className="text-white font-mono">{form.business_code.toUpperCase()}</strong></p>
-        <p className="text-slate-400 mb-6">The business admin can now register via Supabase Auth and will be linked to this business.</p>
+        <p className="text-slate-400 mb-6">The business admin account was successfully created.</p>
         <p className="text-slate-500 text-sm">Redirecting to businesses list...</p>
       </div>
     )
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-4xl mx-auto pb-12">
       <div className="flex items-center gap-4 mb-8">
         <Link href="/super-admin/businesses" className="p-2 bg-slate-700 text-slate-300 rounded-xl hover:bg-slate-600 transition-colors">
           <ArrowLeft size={20} />
@@ -143,63 +107,102 @@ export default function NewBusinessPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="bg-slate-800 rounded-2xl border border-slate-700 p-6 space-y-4">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <Building2 size={20} className="text-violet-400" />
-            Business Information
-          </h2>
+        <div className="grid md:grid-cols-2 gap-6">
+          
+          {/* Business Info */}
+          <div className="bg-slate-800 rounded-2xl border border-slate-700 p-6 space-y-4">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-4">
+              <Building2 size={20} className="text-violet-400" />
+              Business Information
+            </h2>
 
-          <div>
-            <label className="block text-sm font-semibold text-slate-300 mb-2">Business Name *</label>
-            <input name="name" value={form.name} onChange={handleNameChange} required
-              className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-xl outline-none focus:border-violet-500 placeholder:text-slate-500"
-              placeholder="Ahmad Agriculture Store" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-semibold text-slate-300 mb-2">Business Code *</label>
-              <input name="business_code" value={form.business_code} onChange={handleChange} required
-                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-xl outline-none focus:border-violet-500 font-mono"
-                placeholder="AGRI-0001" />
+              <label className="block text-sm font-semibold text-slate-300 mb-2">Business Name *</label>
+              <input name="name" value={form.name} onChange={handleNameChange} required
+                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-xl outline-none focus:border-violet-500 placeholder:text-slate-500"
+                placeholder="Ahmad Agriculture Store" />
             </div>
-            <div>
-              <label className="block text-sm font-semibold text-slate-300 mb-2">Plan *</label>
-              <select name="plan_id" value={form.plan_id} onChange={handleChange}
-                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-xl outline-none focus:border-violet-500">
-                {plans.map(p => <option key={p.id} value={p.id}>{p.name} — PKR {p.monthly_price?.toLocaleString()}/mo</option>)}
-              </select>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-300 mb-2">Business Code *</label>
+                <input name="business_code" value={form.business_code} onChange={handleChange} required
+                  className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-xl outline-none focus:border-violet-500 font-mono"
+                  placeholder="AGRI-0001" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-300 mb-2">Plan *</label>
+                <select name="plan_id" value={form.plan_id} onChange={handleChange}
+                  className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-xl outline-none focus:border-violet-500">
+                  {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+            </div>
+
             <div>
-              <label className="block text-sm font-semibold text-slate-300 mb-2">Email</label>
+              <label className="block text-sm font-semibold text-slate-300 mb-2">Business Email</label>
               <input name="email" type="email" value={form.email} onChange={handleChange}
                 className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-xl outline-none focus:border-violet-500 placeholder:text-slate-500"
-                placeholder="admin@shop.com" />
+                placeholder="info@shop.com" />
             </div>
+            
             <div>
-              <label className="block text-sm font-semibold text-slate-300 mb-2">Phone</label>
+              <label className="block text-sm font-semibold text-slate-300 mb-2">Business Phone</label>
               <input name="phone" value={form.phone} onChange={handleChange}
                 className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-xl outline-none focus:border-violet-500 placeholder:text-slate-500"
                 placeholder="03XX-XXXXXXX" />
             </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-300 mb-2">Address</label>
+              <textarea name="address" value={form.address} onChange={handleChange} rows={2}
+                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-xl outline-none focus:border-violet-500 placeholder:text-slate-500 resize-none"
+                placeholder="Shop #5, Main Market, Lahore" />
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-semibold text-slate-300 mb-2">Address</label>
-            <textarea name="address" value={form.address} onChange={handleChange} rows={2}
-              className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-xl outline-none focus:border-violet-500 placeholder:text-slate-500 resize-none"
-              placeholder="Shop #5, Main Market, Lahore" />
+          {/* Admin Account */}
+          <div className="bg-slate-800 rounded-2xl border border-slate-700 p-6 space-y-4">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-4">
+              <UserCircle size={20} className="text-emerald-400" />
+              Business Admin Account
+            </h2>
+            <p className="text-slate-400 text-sm mb-4">
+              This will create the master account for the business owner. They will use this email and password to log into their dashboard.
+            </p>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-300 mb-2">Admin Full Name *</label>
+              <input name="admin_name" value={form.admin_name} onChange={handleChange} required
+                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-xl outline-none focus:border-emerald-500 placeholder:text-slate-500"
+                placeholder="Ahmad Khan" />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-300 mb-2">Login Email *</label>
+              <input name="admin_email" type="email" value={form.admin_email} onChange={handleChange} required
+                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-xl outline-none focus:border-emerald-500 placeholder:text-slate-500"
+                placeholder="ahmad@gmail.com" />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-300 mb-2">Password *</label>
+              <input name="admin_password" type="password" value={form.admin_password} onChange={handleChange} required minLength={6}
+                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-xl outline-none focus:border-emerald-500 placeholder:text-slate-500"
+                placeholder="Min 6 characters" />
+            </div>
+            
+            <div className="mt-6 pt-4 border-t border-slate-700">
+              <p className="text-xs text-slate-400 bg-slate-700/50 p-3 rounded-lg">
+                <strong className="text-white block mb-1">How it works:</strong>
+                A Supabase Auth user will be created. They will be assigned the "Admin" role for this business automatically. They can log in immediately.
+              </p>
+            </div>
           </div>
+          
         </div>
 
-        <div className="bg-slate-700/30 border border-slate-600 rounded-xl p-4 text-sm text-slate-400">
-          <strong className="text-slate-300">Next Steps:</strong> After creating the business, the business admin should register at <code className="text-violet-400">/login</code> using their email. You will then need to create their <code className="text-violet-400">business_users</code> record in Supabase to link their account to this business.
-        </div>
-
-        <div className="flex gap-4">
+        <div className="flex gap-4 max-w-md ml-auto">
           <Link href="/super-admin/businesses"
             className="flex-1 py-3 border border-slate-600 text-slate-300 rounded-xl text-center font-semibold hover:bg-slate-700 transition-colors">
             Cancel

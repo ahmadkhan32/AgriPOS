@@ -23,13 +23,25 @@ export default function SuperAdminDashboard() {
         .order('created_at', { ascending: false })
 
       const all = data || []
+      
+      const activeBusinesses = all.filter(b => b.status === 'active')
+      const monthlyRevenue = activeBusinesses.reduce((acc, b) => acc + (Number(b.subscription_plans?.monthly_price) || 0), 0)
+      
+      const planCounts = {
+        starter: activeBusinesses.filter(b => b.plan_id === 'starter').length,
+        business: activeBusinesses.filter(b => b.plan_id === 'business').length,
+        professional: activeBusinesses.filter(b => b.plan_id === 'professional').length,
+      }
+      
       setBusinesses(all.slice(0, 10))
       setStats({
         total: all.length,
-        active: all.filter(b => b.status === 'active').length,
+        active: activeBusinesses.length,
         trial: all.filter(b => b.status === 'trial').length,
         suspended: all.filter(b => b.status === 'suspended').length,
         expired: all.filter(b => b.status === 'expired').length,
+        monthlyRevenue,
+        planCounts
       })
     } catch (err) {
       console.error(err)
@@ -69,23 +81,38 @@ export default function SuperAdminDashboard() {
         </Link>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+      {/* Main Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         {[
           { label: 'Total Businesses', val: stats.total, icon: Building2, color: 'from-slate-600 to-slate-700' },
           { label: 'Active', val: stats.active, icon: CheckCircle2, color: 'from-emerald-600 to-emerald-700' },
-          { label: 'Trial', val: stats.trial, icon: Clock, color: 'from-blue-600 to-blue-700' },
-          { label: 'Suspended', val: stats.suspended, icon: Ban, color: 'from-red-600 to-red-700' },
-          { label: 'Expired', val: stats.expired, icon: AlertCircle, color: 'from-orange-600 to-orange-700' },
+          { label: 'Suspended/Expired', val: stats.suspended + stats.expired, icon: AlertCircle, color: 'from-orange-600 to-orange-700' },
+          { label: 'Monthly Revenue', val: `PKR ${stats.monthlyRevenue?.toLocaleString() || 0}`, icon: TrendingUp, color: 'from-blue-600 to-blue-700' },
         ].map(({ label, val, icon: Icon, color }) => (
           <div key={label} className={`bg-gradient-to-br ${color} p-5 rounded-2xl text-white shadow-lg`}>
             <div className="flex items-center gap-2 mb-2">
               <Icon size={18} className="opacity-80" />
               <span className="text-xs font-semibold opacity-80 uppercase tracking-wide">{label}</span>
             </div>
-            <div className="text-3xl font-extrabold">{loading ? '—' : val}</div>
+            <div className="text-2xl font-extrabold">{loading ? '—' : val}</div>
           </div>
         ))}
+      </div>
+
+      {/* Subscription Breakdown */}
+      <div className="grid grid-cols-3 gap-4 mb-8">
+         <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex justify-between items-center">
+            <span className="text-slate-400 font-semibold text-sm">Starter Plans</span>
+            <span className="text-xl font-bold text-white">{stats.planCounts?.starter || 0}</span>
+         </div>
+         <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex justify-between items-center">
+            <span className="text-slate-400 font-semibold text-sm">Business Plans</span>
+            <span className="text-xl font-bold text-white">{stats.planCounts?.business || 0}</span>
+         </div>
+         <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex justify-between items-center">
+            <span className="text-slate-400 font-semibold text-sm">Professional Plans</span>
+            <span className="text-xl font-bold text-white">{stats.planCounts?.professional || 0}</span>
+         </div>
       </div>
 
       {/* Businesses table */}

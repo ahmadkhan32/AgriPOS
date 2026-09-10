@@ -77,35 +77,79 @@ export default function DashboardPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-800">{t('dashboard')}</h1>
         {business && (
-          <p className="text-slate-500 text-sm mt-1">{business.name} · {new Date().toLocaleDateString('en-PK', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          <p className="text-slate-500 text-sm mt-1">{business.name} · {business.plan_id ? business.plan_id.toUpperCase() : 'STARTER'} · <span className="text-emerald-600 font-semibold uppercase">{business.status}</span></p>
         )}
       </div>
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
-        <div className="bg-gradient-to-br from-green-500 to-green-600 p-4 md:p-5 rounded-2xl shadow-lg shadow-green-100 text-white">
-          <div className="text-white/80 text-xs md:text-sm mb-1">{t('todaySales')}</div>
-          <div className="text-lg md:text-2xl font-bold">{formatCurrency(stats.todaySales)}</div>
-          <div className="text-white/70 text-xs mt-1">{stats.todayTransactions} transactions</div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        
+        {/* Main Stats (left span 2) */}
+        <div className="lg:col-span-2 grid grid-cols-2 gap-3 md:gap-4">
+          <div className="bg-gradient-to-br from-green-500 to-green-600 p-4 md:p-5 rounded-2xl shadow-lg shadow-green-100 text-white">
+            <div className="text-white/80 text-xs md:text-sm mb-1">{t('todaySales')}</div>
+            <div className="text-lg md:text-2xl font-bold">{formatCurrency(stats.todaySales)}</div>
+            <div className="text-white/70 text-xs mt-1">{stats.todayTransactions} transactions</div>
+          </div>
+
+          <div className="bg-gradient-to-br from-red-500 to-red-600 p-4 md:p-5 rounded-2xl shadow-lg shadow-red-100 text-white">
+            <div className="text-white/80 text-xs md:text-sm mb-1">{t('totalDue')}</div>
+            <div className="text-lg md:text-2xl font-bold">{formatCurrency(stats.totalDue)}</div>
+            <div className="text-white/70 text-xs mt-1">Outstanding balance</div>
+          </div>
+
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-4 md:p-5 rounded-2xl shadow-lg shadow-blue-100 text-white">
+            <div className="text-white/80 text-xs md:text-sm mb-1">{t('totalCustomers')}</div>
+            <div className="text-lg md:text-2xl font-bold">{stats.totalCustomers}</div>
+            <div className="text-white/70 text-xs mt-1">Registered customers</div>
+          </div>
+
+          <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-4 md:p-5 rounded-2xl shadow-lg shadow-orange-100 text-white">
+            <div className="text-white/80 text-xs md:text-sm mb-1">{t('lowStockAlerts')}</div>
+            <div className="text-lg md:text-2xl font-bold">{stats.lowStockCount}</div>
+            <div className="text-white/70 text-xs mt-1">Products low stock</div>
+          </div>
         </div>
 
-        <div className="bg-gradient-to-br from-red-500 to-red-600 p-4 md:p-5 rounded-2xl shadow-lg shadow-red-100 text-white">
-          <div className="text-white/80 text-xs md:text-sm mb-1">{t('totalDue')}</div>
-          <div className="text-lg md:text-2xl font-bold">{formatCurrency(stats.totalDue)}</div>
-          <div className="text-white/70 text-xs mt-1">Outstanding balance</div>
+        {/* Subscription Card (right span 1) */}
+        <div className="bg-slate-800 rounded-2xl p-5 text-white shadow-lg flex flex-col justify-between">
+          <div>
+            <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Your Subscription</h3>
+            <div className="text-xl font-extrabold mb-1 capitalize">{business?.plan_id || 'Starter'}</div>
+            <div className="inline-flex items-center gap-1.5 bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-full text-xs font-bold mb-4 uppercase">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              {business?.status || 'Active'}
+            </div>
+            
+            <div className="space-y-3 mt-2">
+              <div>
+                <div className="flex justify-between text-xs font-medium mb-1 text-slate-300">
+                  <span>Products</span>
+                  <span>{stats.lowStockCount} / {business?.plan_features?.max_products || 'Unlimited'}</span>
+                </div>
+                <div className="w-full bg-slate-700 rounded-full h-1.5">
+                  <div className="bg-emerald-400 h-1.5 rounded-full" style={{ width: '15%' }}></div>
+                </div>
+              </div>
+              
+              <div>
+                <div className="flex justify-between text-xs font-medium mb-1 text-slate-300">
+                  <span>Customers</span>
+                  <span>{stats.totalCustomers} / {business?.plan_features?.max_customers || 'Unlimited'}</span>
+                </div>
+                <div className="w-full bg-slate-700 rounded-full h-1.5">
+                  <div className="bg-blue-400 h-1.5 rounded-full" style={{ width: '45%' }}></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-6">
+            <a href="/dashboard/subscription" className="w-full block text-center py-2 bg-white/10 hover:bg-white/20 transition-colors rounded-xl text-sm font-semibold">
+              View Plan
+            </a>
+          </div>
         </div>
 
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-4 md:p-5 rounded-2xl shadow-lg shadow-blue-100 text-white">
-          <div className="text-white/80 text-xs md:text-sm mb-1">{t('totalCustomers')}</div>
-          <div className="text-lg md:text-2xl font-bold">{stats.totalCustomers}</div>
-          <div className="text-white/70 text-xs mt-1">Registered customers</div>
-        </div>
-
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-4 md:p-5 rounded-2xl shadow-lg shadow-orange-100 text-white">
-          <div className="text-white/80 text-xs md:text-sm mb-1">{t('lowStockAlerts')}</div>
-          <div className="text-lg md:text-2xl font-bold">{stats.lowStockCount}</div>
-          <div className="text-white/70 text-xs mt-1">Products low stock</div>
-        </div>
       </div>
 
       {/* Recent invoices */}

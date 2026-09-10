@@ -46,7 +46,34 @@ export function AuthProvider({ children }) {
         .single();
 
       if (bu) {
+        // --- Development override ---
+        if (process.env.NODE_ENV === 'development') {
+          bu.is_admin = true;
+          if (bu.business) {
+            bu.business.status = 'active';
+            bu.business.plan_id = 'professional';
+          }
+        }
+        // ----------------------------
+        
         setBusinessUser(bu);
+        
+        // Fetch plan features
+        if (bu.business?.plan_id) {
+          const { data: featuresData } = await supabase
+            .from('plan_features')
+            .select('feature_key, feature_value')
+            .eq('plan_id', bu.business.plan_id);
+            
+          if (featuresData) {
+            const parsedFeatures = {};
+            featuresData.forEach(f => {
+              parsedFeatures[f.feature_key] = f.feature_value;
+            });
+            bu.business.plan_features = parsedFeatures;
+          }
+        }
+
         // Extract permissions from the role
         const perms = bu.role?.role_permissions?.map(rp => rp.permission_id) || [];
         // Admins get all permissions
