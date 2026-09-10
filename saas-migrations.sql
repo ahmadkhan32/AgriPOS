@@ -5,11 +5,26 @@
 -- ============================================================
 
 -- ============================================================
+-- app_config: global key/value configuration store
+-- MUST be created BEFORE is_super_admin() because LANGUAGE sql
+-- functions validate table references at definition time in PostgreSQL.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.app_config (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+-- Seed the super-admin email (update value here if email changes)
+INSERT INTO public.app_config (key, value)
+VALUES ('super_admin_email', 'superadmin@agripos.com')
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+
+-- ============================================================
 -- HELPER: is_super_admin()
 -- Checks if the currently authenticated user's email matches
 -- the super_admin_email stored in app_config.
 -- Uses auth.email() which is natively supported by Supabase.
--- NOTE: Create this function BEFORE the tables so RLS can use it.
+-- app_config must already exist above before this function runs.
 -- ============================================================
 CREATE OR REPLACE FUNCTION public.is_super_admin()
 RETURNS BOOLEAN
@@ -25,19 +40,6 @@ AS $$
       AND  value = auth.email()
   );
 $$;
-
--- ============================================================
--- app_config: global key/value configuration store
--- ============================================================
-CREATE TABLE IF NOT EXISTS public.app_config (
-    key   TEXT PRIMARY KEY,
-    value TEXT NOT NULL
-);
-
--- Seed the super-admin email (update value here if email changes)
-INSERT INTO public.app_config (key, value)
-VALUES ('super_admin_email', 'superadmin@agripos.com')
-ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 -- ============================================================
 -- 1. plan_features: configuration-driven limits per plan
