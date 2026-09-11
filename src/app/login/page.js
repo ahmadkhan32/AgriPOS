@@ -52,8 +52,21 @@ export default function LoginPage() {
     }
   }
 
+  // Don't render until client-side mounted to avoid SSR/client mismatch
+  // caused by browser extensions (e.g. bis_skin_checked attributes)
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 relative overflow-hidden">
+    <div
+      className="min-h-screen flex flex-col items-center justify-center bg-slate-50 relative overflow-hidden"
+      suppressHydrationWarning
+    >
       {/* Background */}
       <div className="absolute top-0 left-0 w-full h-full opacity-[0.03] pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-600 blur-[120px]" />
