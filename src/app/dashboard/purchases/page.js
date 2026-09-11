@@ -34,7 +34,7 @@ export default function PurchasesPage() {
   }
 
   return (
-    <div>
+    <div suppressHydrationWarning>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
           <ShoppingBag size={24} className="text-orange-600" />

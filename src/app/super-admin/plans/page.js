@@ -39,7 +39,7 @@ export default function PlansPage() {
   }
 
   return (
-    <div>
+    <div suppressHydrationWarning>
       <div className="mb-8">
         <h1 className="text-2xl font-extrabold text-white">Plans & Pricing</h1>
         <p className="text-slate-400 text-sm mt-1">Manage subscription plans and their pricing</p>

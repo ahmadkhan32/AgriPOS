@@ -42,10 +42,10 @@ export default function SubscriptionPage() {
 
   const isTrialing = business?.status === 'trial'
 
-  if (loading) return <div className="flex items-center justify-center h-48"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" /></div>
+  if (loading) return <div className="flex items-center justify-center h-48" suppressHydrationWarning><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" suppressHydrationWarning /></div>
 
   return (
-    <div className="max-w-4xl">
+    <div className="max-w-4xl" suppressHydrationWarning>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
           <CreditCard size={24} className="text-emerald-600" />

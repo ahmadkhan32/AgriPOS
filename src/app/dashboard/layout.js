@@ -91,8 +91,8 @@ export default function DashboardLayout({ children }) {
 
   if (!hasMounted || authLoading || !initialized) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600" />
+      <div className="min-h-screen flex items-center justify-center bg-slate-50" suppressHydrationWarning>
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600" suppressHydrationWarning />
       </div>
     )
   }
@@ -181,7 +181,7 @@ export default function DashboardLayout({ children }) {
   )
 
   return (
-    <div className="min-h-screen flex bg-slate-50">
+    <div className="min-h-screen flex bg-slate-50" suppressHydrationWarning>
       {/* Mobile Overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={closeSidebar} />

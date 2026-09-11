@@ -165,20 +165,24 @@ const LanguageContext = createContext(null)
 
 export function LanguageProvider({ children }) {
   const [language, setLanguage] = useState('en')
-  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    const saved = localStorage.getItem('language')
-    if (saved && (saved === 'en' || saved === 'bn')) {
-      setLanguage(saved)
+    try {
+      const saved = localStorage.getItem('language')
+      if (saved && (saved === 'en' || saved === 'bn')) {
+        setLanguage(saved)
+      }
+    } catch (e) {
+      // localStorage may not be available
     }
-    setMounted(true)
   }, [])
 
   const toggleLanguage = () => {
     const newLang = language === 'en' ? 'bn' : 'en'
     setLanguage(newLang)
-    localStorage.setItem('language', newLang)
+    try {
+      localStorage.setItem('language', newLang)
+    } catch (e) {}
   }
 
   const t = (key) => {
@@ -191,10 +195,6 @@ export function LanguageProvider({ children }) {
   }
 
   const getUnit = (unit) => unit
-
-  if (!mounted) {
-    return <>{children}</>
-  }
 
   return (
     <LanguageContext.Provider value={{ language, toggleLanguage, t, formatCurrency, getUnit }}>
@@ -209,8 +209,8 @@ export function useLanguage() {
     return { 
       language: 'en', 
       toggleLanguage: () => {}, 
-      t: (key) => key,
-      formatCurrency: (amount) => 'PKR ' + (amount || 0),
+      t: (key) => translations.en[key] || key,
+      formatCurrency: (amount) => 'PKR ' + Math.round(amount || 0).toLocaleString(),
       getUnit: (unit) => unit
     }
   }

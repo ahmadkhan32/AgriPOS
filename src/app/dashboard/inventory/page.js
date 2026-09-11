@@ -92,15 +92,15 @@ export default function InventoryPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+      <div className="flex items-center justify-center h-64" suppressHydrationWarning>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" suppressHydrationWarning></div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="p-4 bg-red-50 text-red-600 rounded-lg">
+      <div className="p-4 bg-red-50 text-red-600 rounded-lg" suppressHydrationWarning>
         Error: {error}
         <button onClick={() => loadProductsAgain()} className="ml-4 underline">Retry</button>
       </div>
@@ -108,7 +108,7 @@ export default function InventoryPage() {
   }
 
   return (
-    <div>
+    <div suppressHydrationWarning>
       <h1 className="text-2xl font-bold text-slate-800 mb-6">{t('inventory')}</h1>
 
       <div className="flex gap-4 mb-6">

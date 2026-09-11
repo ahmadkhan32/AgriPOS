@@ -54,7 +54,7 @@ export default function DashboardPage() {
 
   if (!businessId) {
     return (
-      <div className="p-8 text-center">
+      <div className="p-8 text-center" suppressHydrationWarning>
         <div className="text-slate-400 mb-2">Not linked to any business</div>
         <p className="text-sm text-slate-500">Please contact your administrator to set up your account.</p>
       </div>
@@ -62,17 +62,17 @@ export default function DashboardPage() {
   }
 
   if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" />
+    <div className="flex items-center justify-center h-64" suppressHydrationWarning>
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" suppressHydrationWarning />
     </div>
   )
 
   if (error) return (
-    <div className="p-4 bg-red-50 text-red-600 rounded-lg">Error: {error}</div>
+    <div className="p-4 bg-red-50 text-red-600 rounded-lg" suppressHydrationWarning>Error: {error}</div>
   )
 
   return (
-    <div>
+    <div suppressHydrationWarning>
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-800">{t('dashboard')}</h1>

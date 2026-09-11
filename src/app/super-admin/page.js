@@ -66,7 +66,7 @@ export default function SuperAdminDashboard() {
   }
 
   return (
-    <div>
+    <div suppressHydrationWarning>
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-extrabold text-white">Platform Dashboard</h1>

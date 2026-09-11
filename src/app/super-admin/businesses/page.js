@@ -54,7 +54,7 @@ export default function BusinessesPage() {
   }
 
   return (
-    <div>
+    <div suppressHydrationWarning>
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-extrabold text-white">Businesses</h1>

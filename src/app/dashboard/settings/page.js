@@ -106,22 +106,22 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+      <div className="flex items-center justify-center h-64" suppressHydrationWarning>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" suppressHydrationWarning></div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="p-4 bg-red-50 text-red-600 rounded-lg">
+      <div className="p-4 bg-red-50 text-red-600 rounded-lg" suppressHydrationWarning>
         Error: {error}
       </div>
     )
   }
 
   return (
-    <div>
+    <div suppressHydrationWarning>
       <h1 className="text-2xl font-bold text-slate-800 mb-6">{t('settings')}</h1>
 
       <div className="max-w-2xl">

@@ -56,8 +56,8 @@ export default function LoginPage() {
   // caused by browser extensions (e.g. bis_skin_checked attributes)
   if (!mounted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-slate-50" suppressHydrationWarning>
+        <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" suppressHydrationWarning />
       </div>
     )
   }
@@ -68,7 +68,7 @@ export default function LoginPage() {
       suppressHydrationWarning
     >
       {/* Background */}
-      <div className="absolute top-0 left-0 w-full h-full opacity-[0.03] pointer-events-none">
+      <div className="absolute top-0 left-0 w-full h-full opacity-[0.03] pointer-events-none" suppressHydrationWarning>
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-600 blur-[120px]" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-amber-600 blur-[120px]" />
       </div>
@@ -80,14 +80,12 @@ export default function LoginPage() {
         </a>
       </div>
       <div className="absolute top-6 right-6">
-        {mounted && (
-          <button
-            onClick={toggleLanguage}
-            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl shadow-sm font-semibold text-sm hover:bg-slate-50 transition-colors"
-          >
-            {language === 'en' ? 'বাংলা' : 'English'}
-          </button>
-        )}
+        <button
+          onClick={toggleLanguage}
+          className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl shadow-sm font-semibold text-sm hover:bg-slate-50 transition-colors"
+        >
+          {language === 'en' ? 'বাংলা' : 'English'}
+        </button>
       </div>
 
       <div className="w-full max-w-[440px] px-6 relative z-10">
@@ -115,7 +113,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2">{t('email')}</label>
-              <div className="relative group">
+              <div className="relative group" suppressHydrationWarning>
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors">
                   <Mail size={20} />
                 </div>
@@ -134,7 +132,7 @@ export default function LoginPage() {
 
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2">{t('password')}</label>
-              <div className="relative group">
+              <div className="relative group" suppressHydrationWarning>
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors">
                   <Lock size={20} />
                 </div>

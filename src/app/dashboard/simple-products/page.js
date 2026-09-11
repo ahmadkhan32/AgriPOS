@@ -26,11 +26,11 @@ export default function SimpleProductsPage() {
     load()
   }, [])
 
-  if (loading) return <div>Simple Loading...</div>
-  if (error) return <div>Simple Error: {error}</div>
+  if (loading) return <div suppressHydrationWarning>Simple Loading...</div>
+  if (error) return <div suppressHydrationWarning>Simple Error: {error}</div>
 
   return (
-    <div className="p-10">
+    <div className="p-10" suppressHydrationWarning>
       <h1 className="text-2xl font-bold mb-4">Simple Products Page</h1>
       <ul>
         {products.map(p => (

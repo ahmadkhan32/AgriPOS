@@ -103,14 +103,14 @@ export default function RolesPage() {
   }
 
   if (!isAdmin) return (
-    <div className="p-8 text-center">
+    <div className="p-8 text-center" suppressHydrationWarning>
       <Shield size={48} className="mx-auto mb-4 text-slate-300" />
       <p className="text-slate-500">Only admins can manage roles.</p>
     </div>
   )
 
   return (
-    <div>
+    <div suppressHydrationWarning>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
           <Shield size={24} className="text-indigo-600" />

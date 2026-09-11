@@ -32,7 +32,7 @@ export default function UsersPage() {
 
   if (!isAdmin) {
     return (
-      <div className="p-8 text-center">
+      <div className="p-8 text-center" suppressHydrationWarning>
         <Shield size={48} className="mx-auto mb-4 text-slate-300" />
         <h2 className="text-lg font-bold text-slate-700 mb-2">Access Restricted</h2>
         <p className="text-slate-500">Only business admins can manage users.</p>
@@ -54,7 +54,7 @@ export default function UsersPage() {
   const toggleActive = (u) => updateUser(u.id, { is_active: !u.is_active })
 
   return (
-    <div>
+    <div suppressHydrationWarning>
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">

@@ -89,7 +89,7 @@ export default function NewBusinessPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto pb-12">
+    <div className="max-w-4xl mx-auto pb-12" suppressHydrationWarning>
       <div className="flex items-center gap-4 mb-8">
         <Link href="/super-admin/businesses" className="p-2 bg-slate-700 text-slate-300 rounded-xl hover:bg-slate-600 transition-colors">
           <ArrowLeft size={20} />

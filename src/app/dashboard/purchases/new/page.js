@@ -116,7 +116,7 @@ export default function NewPurchasePage() {
   }
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-3xl" suppressHydrationWarning>
       <div className="flex items-center gap-4 mb-6">
         <Link href="/dashboard/purchases" className="p-2 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors">
           <ArrowLeft size={20} />

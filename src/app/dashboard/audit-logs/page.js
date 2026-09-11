@@ -56,7 +56,7 @@ export default function AuditLogsPage() {
   }
 
   return (
-    <div>
+    <div suppressHydrationWarning>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-slate-800">Activity Log</h1>
         <button onClick={loadLogs} className="px-4 py-2 border rounded hover:bg-slate-50">

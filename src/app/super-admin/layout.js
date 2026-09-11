@@ -38,8 +38,8 @@ export default function SuperAdminLayout({ children }) {
 
   if (!hasMounted || loading || !initialized) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-violet-400" />
+      <div className="min-h-screen flex items-center justify-center bg-slate-900" suppressHydrationWarning>
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-violet-400" suppressHydrationWarning />
       </div>
     )
   }
@@ -49,7 +49,7 @@ export default function SuperAdminLayout({ children }) {
   const isActive = (href, exact) => exact ? pathname === href : pathname.startsWith(href)
 
   return (
-    <div className="min-h-screen flex bg-slate-900">
+    <div className="min-h-screen flex bg-slate-900" suppressHydrationWarning>
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/60 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />

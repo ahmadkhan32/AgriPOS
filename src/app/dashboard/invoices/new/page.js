@@ -151,7 +151,7 @@ export default function NewInvoicePage() {
   }
 
   return (
-    <div>
+    <div suppressHydrationWarning>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-slate-800">{t('createInvoice')}</h1>
         <Link href="/dashboard/invoices" className="px-4 py-2 border rounded hover:bg-slate-50">
