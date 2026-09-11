@@ -1,56 +1,45 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
 import { useAuth } from '@/context/AuthContext'
+import { useFastQuery } from '@/lib/cache'
 
 export default function DashboardPage() {
   const { t, formatCurrency } = useLanguage()
   const { businessId, business } = useAuth()
-  const [stats, setStats] = useState({ todaySales: 0, totalDue: 0, totalCustomers: 0, lowStockCount: 0, todayTransactions: 0 })
-  const [recentInvoices, setRecentInvoices] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
 
-  useEffect(() => {
-    if (!businessId) return
-    let mounted = true
+  const { data, loading, error } = useFastQuery(
+    businessId ? `dashboard_data_${businessId}` : null,
+    async () => {
+      const today = new Date().toISOString().split('T')[0]
 
-    const loadDashboardData = async () => {
-      try {
-        const today = new Date().toISOString().split('T')[0]
+      const [productsRes, customersRes, invoicesTodayRes, recentRes] = await Promise.all([
+        supabase.from('products').select('id,stock_quantity').eq('business_id', businessId).lt('stock_quantity', 10),
+        supabase.from('customers').select('id,total_due').eq('business_id', businessId),
+        supabase.from('invoices').select('id,total_amount').eq('business_id', businessId).gte('created_at', `${today}T00:00:00`),
+        supabase.from('invoices').select('id,total_amount,due_amount,created_at,customer_name,customer_phone').eq('business_id', businessId).order('created_at', { ascending: false }).limit(8),
+      ])
 
-        const [productsRes, customersRes, invoicesTodayRes, recentRes] = await Promise.all([
-          supabase.from('products').select('id,stock_quantity').eq('business_id', businessId).lt('stock_quantity', 10),
-          supabase.from('customers').select('id,total_due').eq('business_id', businessId),
-          supabase.from('invoices').select('id,total_amount').eq('business_id', businessId).gte('created_at', `${today}T00:00:00`),
-          supabase.from('invoices').select('id,total_amount,due_amount,created_at,customer_name,customer_phone').eq('business_id', businessId).order('created_at', { ascending: false }).limit(8),
-        ])
+      const todaySales = invoicesTodayRes.data?.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0) || 0
+      const totalDue = customersRes.data?.reduce((sum, c) => sum + Number(c.total_due || 0), 0) || 0
 
-        if (mounted) {
-          const todaySales = invoicesTodayRes.data?.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0) || 0
-          const totalDue = customersRes.data?.reduce((sum, c) => sum + Number(c.total_due || 0), 0) || 0
-
-          setStats({
-            todaySales,
-            totalDue,
-            totalCustomers: customersRes.data?.length || 0,
-            lowStockCount: productsRes.data?.length || 0,
-            todayTransactions: invoicesTodayRes.data?.length || 0,
-          })
-          setRecentInvoices(recentRes.data || [])
-          setLoading(false)
-        }
-      } catch (err) {
-        console.error('Dashboard error:', err)
-        if (mounted) { setError(err.message); setLoading(false) }
+      return {
+        stats: {
+          todaySales,
+          totalDue,
+          totalCustomers: customersRes.data?.length || 0,
+          lowStockCount: productsRes.data?.length || 0,
+          todayTransactions: invoicesTodayRes.data?.length || 0,
+        },
+        recentInvoices: recentRes.data || []
       }
-    }
+    },
+    { enabled: !!businessId, maxAge: 30000 }
+  )
 
-    loadDashboardData()
-    return () => { mounted = false }
-  }, [businessId])
+  const stats = data?.stats || { todaySales: 0, totalDue: 0, totalCustomers: 0, lowStockCount: 0, todayTransactions: 0 }
+  const recentInvoices = data?.recentInvoices || []
 
   if (!businessId) {
     return (
@@ -61,13 +50,24 @@ export default function DashboardPage() {
     )
   }
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64" suppressHydrationWarning>
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" suppressHydrationWarning />
-    </div>
-  )
+  if (loading && !data) {
+    return (
+      <div className="space-y-6 animate-pulse" suppressHydrationWarning>
+        <div className="h-8 w-48 bg-slate-200 rounded-lg" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 grid grid-cols-2 gap-4">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-28 bg-slate-200 rounded-2xl" />
+            ))}
+          </div>
+          <div className="h-60 bg-slate-200 rounded-2xl" />
+        </div>
+        <div className="h-64 bg-slate-200 rounded-2xl" />
+      </div>
+    )
+  }
 
-  if (error) return (
+  if (error && !data) return (
     <div className="p-4 bg-red-50 text-red-600 rounded-lg" suppressHydrationWarning>Error: {error}</div>
   )
 

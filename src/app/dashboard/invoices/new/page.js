@@ -1,12 +1,15 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
 import { useAuth } from '@/context/AuthContext'
+import { invalidateCache, getCached, setCached } from '@/lib/cache'
 
 export default function NewInvoicePage() {
+  const router = useRouter()
   const { t, formatCurrency } = useLanguage()
   const { businessId } = useAuth()
   const [products, setProducts] = useState([])
@@ -27,7 +30,16 @@ export default function NewInvoicePage() {
   const customerRef = useRef(null)
 
   useEffect(() => {
-    loadProducts()
+    if (!businessId) return
+    const cached = getCached(`products_${businessId}`)
+    if (cached) {
+      setProducts(cached.data)
+    } else {
+      loadProducts()
+    }
+  }, [businessId])
+
+  useEffect(() => {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
@@ -38,10 +50,13 @@ export default function NewInvoicePage() {
   }
 
   const loadProducts = async () => {
-    let q = supabase.from('products').select('*').order('name')
+    let q = supabase.from('products').select('id, name, category, unit, price, stock_quantity, business_id').order('name')
     if (businessId) q = q.eq('business_id', businessId)
     const { data } = await q
-    setProducts(data || [])
+    if (data) {
+      setProducts(data)
+      setCached(`products_${businessId}`, data)
+    }
   }
 
   const selectCustomer = (customer) => {
@@ -141,8 +156,14 @@ export default function NewInvoicePage() {
         }])
       }
 
+      invalidateCache(`invoices_${businessId}`)
+      invalidateCache(`products_${businessId}`)
+      invalidateCache(`dashboard_data_${businessId}`)
+      invalidateCache(`customers_${businessId}`)
+      invalidateCache(`reports_${businessId}`)
+
       alert('Invoice saved successfully!')
-      window.location.href = '/dashboard/invoices'
+      router.push('/dashboard/invoices')
     } catch (err) {
       alert(err.message)
     } finally {

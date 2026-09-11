@@ -1,30 +1,34 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
+import { useFastQuery, invalidateCache } from '@/lib/cache'
 import { Plus, Edit2, Trash2, Truck, X, Save } from 'lucide-react'
 
 export default function SuppliersPage() {
   const { businessId } = useAuth()
   const { formatCurrency } = useLanguage()
-  const [suppliers, setSuppliers] = useState([])
-  const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingSupplier, setEditingSupplier] = useState(null)
   const [form, setForm] = useState({ name: '', phone: '', email: '', address: '' })
 
-  useEffect(() => {
-    if (businessId) loadSuppliers()
-  }, [businessId])
+  const { data: suppliersData, loading, error, refetch, setData: setSuppliersData } = useFastQuery(
+    businessId ? `suppliers_${businessId}` : null,
+    async () => {
+      const { data, error } = await supabase
+        .from('suppliers')
+        .select('id, name, phone, email, address, total_purchases, total_due, business_id')
+        .eq('business_id', businessId)
+        .order('name')
+      if (error) throw error
+      return data || []
+    },
+    { enabled: !!businessId, maxAge: 60000 }
+  )
 
-  const loadSuppliers = async () => {
-    setLoading(true)
-    const { data } = await supabase.from('suppliers').select('*').eq('business_id', businessId).order('name')
-    setSuppliers(data || [])
-    setLoading(false)
-  }
+  const suppliers = suppliersData || []
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -36,16 +40,18 @@ export default function SuppliersPage() {
         const { error } = await supabase.from('suppliers').insert([{ ...form, business_id: businessId }])
         if (error) throw error
       }
+      invalidateCache(`suppliers_${businessId}`)
       setShowModal(false)
       resetForm()
-      loadSuppliers()
+      refetch()
     } catch (err) { alert(err.message) }
   }
 
   const handleDelete = async (id) => {
     if (!confirm('Delete this supplier?')) return
     await supabase.from('suppliers').delete().eq('id', id)
-    loadSuppliers()
+    invalidateCache(`suppliers_${businessId}`)
+    setSuppliersData(prev => (prev || []).filter(s => s.id !== id))
   }
 
   const resetForm = () => {
@@ -75,8 +81,11 @@ export default function SuppliersPage() {
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        {loading ? (
-          <div className="p-8 text-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto" /></div>
+        {loading && !suppliersData ? (
+          <div className="p-8 text-center animate-pulse">
+            <div className="h-8 w-48 bg-slate-200 rounded mx-auto mb-4" />
+            <div className="h-32 bg-slate-200 rounded-xl" />
+          </div>
         ) : suppliers.length === 0 ? (
           <div className="p-8 text-center text-slate-500">
             <Truck size={40} className="mx-auto mb-3 text-slate-300" />

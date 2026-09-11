@@ -1,17 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
 import { Plus, Search, Edit2, Trash2, Package, X, Save } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { useFastQuery, invalidateCache } from '@/lib/cache'
 
 export default function ProductsPage() {
   const { t, formatCurrency, getUnit } = useLanguage()
   const { businessId } = useAuth()
-  const [products, setProducts] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -23,29 +21,22 @@ export default function ProductsPage() {
     stock_quantity: '',
   })
 
-  useEffect(() => {
-    let mounted = true
+  const { data: productsData, loading, error, refetch, setData: setProductsData } = useFastQuery(
+    businessId ? `products_${businessId}` : null,
+    async () => {
+      let q = supabase
+        .from('products')
+        .select('id, name, category, unit, price, stock_quantity, business_id')
+        .order('name')
+      if (businessId) q = q.eq('business_id', businessId)
+      const { data, error } = await q
+      if (error) throw error
+      return data || []
+    },
+    { enabled: !!businessId, maxAge: 60000 }
+  )
 
-    const loadProducts = async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        let q = supabase.from('products').select('*').order('name')
-        if (businessId) q = q.eq('business_id', businessId)
-        const { data, error } = await q
-        if (error) throw error
-        if (mounted) setProducts(data || [])
-      } catch (err) {
-        if (mounted) setError(err.message)
-      } finally {
-        if (mounted) setLoading(false)
-      }
-    }
-
-    loadProducts()
-
-    return () => { mounted = false }
-  }, [businessId])
+  const products = productsData || []
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -68,21 +59,14 @@ export default function ProductsPage() {
         if (error) throw error
       }
 
+      invalidateCache(`products_${businessId}`)
+      invalidateCache(`dashboard_data_${businessId}`)
       setShowModal(false)
       resetForm()
-      loadProductsAgain()
+      refetch()
     } catch (err) {
       alert(err.message)
     }
-  }
-
-  const loadProductsAgain = async () => {
-    try {
-      let q = supabase.from('products').select('*').order('name')
-      if (businessId) q = q.eq('business_id', businessId)
-      const { data } = await q
-      setProducts(data || [])
-    } catch (err) { console.error(err) }
   }
 
   const handleEdit = (product) => {
@@ -102,7 +86,9 @@ export default function ProductsPage() {
     try {
       const { error } = await supabase.from('products').delete().eq('id', id)
       if (error) throw error
-      loadProductsAgain()
+      invalidateCache(`products_${businessId}`)
+      invalidateCache(`dashboard_data_${businessId}`)
+      setProductsData(prev => (prev || []).filter(p => p.id !== id))
     } catch (err) {
       alert(err.message)
     }
@@ -119,9 +105,11 @@ export default function ProductsPage() {
     })
   }
 
-  const filteredProducts = products.filter(p => 
-    (p.name || '').toLowerCase().includes((searchTerm || '').toLowerCase())
-  )
+  const filteredProducts = useMemo(() => {
+    return products.filter(p => 
+      (p.name || '').toLowerCase().includes((searchTerm || '').toLowerCase())
+    )
+  }, [products, searchTerm])
 
   const getCategoryColor = (cat) => {
     switch(cat) {
@@ -132,19 +120,21 @@ export default function ProductsPage() {
     }
   }
 
-  if (loading) {
+  if (loading && !productsData) {
     return (
-      <div className="flex items-center justify-center h-64" suppressHydrationWarning>
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" suppressHydrationWarning></div>
+      <div className="space-y-4 animate-pulse" suppressHydrationWarning>
+        <div className="h-10 w-48 bg-slate-200 rounded-lg" />
+        <div className="h-10 w-80 bg-slate-200 rounded-lg" />
+        <div className="h-64 bg-slate-200 rounded-xl" />
       </div>
     )
   }
 
-  if (error) {
+  if (error && !productsData) {
     return (
       <div className="p-4 bg-red-50 text-red-600 rounded-lg" suppressHydrationWarning>
         Error: {error}
-        <button onClick={() => loadProductsAgain()} className="ml-4 underline">Retry</button>
+        <button onClick={() => refetch()} className="ml-4 underline">Retry</button>
       </div>
     )
   }

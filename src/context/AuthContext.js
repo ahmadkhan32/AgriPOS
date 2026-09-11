@@ -7,6 +7,34 @@ import { isSuperAdmin } from "@/lib/superAdmin";
 
 const AuthContext = createContext(null);
 
+const CACHE_KEY = "agripos_auth_cache";
+
+function getStoredAuthCache() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY) || localStorage.getItem(CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function setStoredAuthCache(data) {
+  if (typeof window === "undefined") return;
+  try {
+    if (!data) {
+      sessionStorage.removeItem(CACHE_KEY);
+      localStorage.removeItem(CACHE_KEY);
+    } else {
+      const json = JSON.stringify(data);
+      sessionStorage.setItem(CACHE_KEY, json);
+      localStorage.setItem(CACHE_KEY, json);
+    }
+  } catch (e) {
+    console.warn("Could not cache auth data:", e);
+  }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
@@ -15,19 +43,34 @@ export function AuthProvider({ children }) {
   const [businessUser, setBusinessUser] = useState(null);
   const [permissions, setPermissions] = useState([]);
 
-  // Load business user profile + permissions from Supabase
+  // Fast initial hydration from local cache
+  useEffect(() => {
+    const cached = getStoredAuthCache();
+    if (cached) {
+      if (cached.businessUser) setBusinessUser(cached.businessUser);
+      if (cached.permissions) setPermissions(cached.permissions);
+      if (cached.user) setUser(cached.user);
+      setLoading(false);
+      setInitialized(true);
+    }
+  }, []);
+
+  // Load business user profile + permissions in parallel
   const loadBusinessUser = async (authUser) => {
     if (!authUser) {
       setBusinessUser(null);
       setPermissions([]);
+      setStoredAuthCache(null);
       return;
     }
     // Super admin has no business user record
     if (isSuperAdmin(authUser)) {
       setBusinessUser(null);
       setPermissions([]);
+      setStoredAuthCache({ user: authUser, businessUser: null, permissions: [] });
       return;
     }
+
     try {
       const { data: bu } = await supabase
         .from('business_users')
@@ -46,7 +89,7 @@ export function AuthProvider({ children }) {
         .single();
 
       if (bu) {
-        // --- Development override ---
+        // Development override
         if (process.env.NODE_ENV === 'development') {
           bu.is_admin = true;
           if (bu.business) {
@@ -54,37 +97,39 @@ export function AuthProvider({ children }) {
             bu.business.plan_id = 'professional';
           }
         }
-        // ----------------------------
-        
-        setBusinessUser(bu);
-        
-        // Fetch plan features
-        if (bu.business?.plan_id) {
-          const { data: featuresData } = await supabase
-            .from('plan_features')
-            .select('feature_key, feature_value')
-            .eq('plan_id', bu.business.plan_id);
-            
-          if (featuresData) {
-            const parsedFeatures = {};
-            featuresData.forEach(f => {
-              parsedFeatures[f.feature_key] = f.feature_value;
-            });
-            bu.business.plan_features = parsedFeatures;
-          }
+
+        // Parallelize plan_features and permissions queries for high speed
+        const [featuresRes, allPermsRes] = await Promise.all([
+          bu.business?.plan_id
+            ? supabase.from('plan_features').select('feature_key, feature_value').eq('plan_id', bu.business.plan_id)
+            : Promise.resolve({ data: null }),
+          bu.is_admin
+            ? supabase.from('permissions').select('id')
+            : Promise.resolve({ data: null }),
+        ]);
+
+        if (featuresRes.data && bu.business) {
+          const parsedFeatures = {};
+          featuresRes.data.forEach(f => {
+            parsedFeatures[f.feature_key] = f.feature_value;
+          });
+          bu.business.plan_features = parsedFeatures;
         }
 
-        // Extract permissions from the role
-        const perms = bu.role?.role_permissions?.map(rp => rp.permission_id) || [];
-        // Admins get all permissions
-        if (bu.is_admin) {
-          const { data: allPerms } = await supabase
-            .from('permissions')
-            .select('id');
-          setPermissions(allPerms?.map(p => p.id) || perms);
-        } else {
-          setPermissions(perms);
-        }
+        const rolePerms = bu.role?.role_permissions?.map(rp => rp.permission_id) || [];
+        const finalPerms = bu.is_admin
+          ? (allPermsRes.data?.map(p => p.id) || rolePerms)
+          : rolePerms;
+
+        setBusinessUser(bu);
+        setPermissions(finalPerms);
+
+        // Cache hydrated profile
+        setStoredAuthCache({
+          user: authUser,
+          businessUser: bu,
+          permissions: finalPerms,
+        });
       }
     } catch (err) {
       console.error('Error loading business user:', err);
@@ -102,6 +147,8 @@ export function AuthProvider({ children }) {
           setUser(session?.user ?? null);
           if (session?.user) {
             await loadBusinessUser(session.user);
+          } else {
+            setStoredAuthCache(null);
           }
           setInitialized(true);
           setLoading(false);
@@ -124,6 +171,7 @@ export function AuthProvider({ children }) {
         setUser(null);
         setBusinessUser(null);
         setPermissions([]);
+        setStoredAuthCache(null);
       } else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
         setSession(session);
         setUser(session?.user ?? null);
@@ -149,6 +197,7 @@ export function AuthProvider({ children }) {
     setUser(null);
     setBusinessUser(null);
     setPermissions([]);
+    setStoredAuthCache(null);
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   };

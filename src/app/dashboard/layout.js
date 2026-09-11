@@ -133,7 +133,7 @@ export default function DashboardLayout({ children }) {
       </div>
 
       <div className="p-3">
-        <Link href="/dashboard/invoices/new" onClick={closeSidebar}
+        <Link href="/dashboard/invoices/new" prefetch={true} onClick={closeSidebar}
           className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-all shadow-md shadow-emerald-100 hover:shadow-emerald-200 active:scale-[0.98] text-sm">
           <PlusCircle size={18} />
           <span>New Invoice</span>
@@ -145,7 +145,7 @@ export default function DashboardLayout({ children }) {
           const Icon = item.icon
           const isActive = pathname === item.href
           return (
-            <Link key={item.href} href={item.href} onClick={closeSidebar}
+            <Link key={item.href} href={item.href} prefetch={true} onClick={closeSidebar}
               className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 group ${
                 isActive
                   ? 'bg-emerald-50 text-emerald-700 font-semibold shadow-sm'

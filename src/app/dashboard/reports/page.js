@@ -1,83 +1,91 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
+import { useFastQuery } from '@/lib/cache'
 import { BarChart3, TrendingUp, Receipt, Package, Users, DollarSign, Download } from 'lucide-react'
 
 export default function ReportsPage() {
   const { businessId, business } = useAuth()
   const { formatCurrency } = useLanguage()
   const [period, setPeriod] = useState('today')
-  const [data, setData] = useState({ totalSales: 0, totalDue: 0, totalPaid: 0, invoiceCount: 0, topProducts: [], newCustomers: 0, totalPurchases: 0 })
-  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (businessId) loadReports()
-  }, [businessId, period])
-
-  const getDateRange = () => {
+  const getDateRange = (p) => {
     const now = new Date()
     const today = now.toISOString().split('T')[0]
-    if (period === 'today') return [`${today}T00:00:00`, `${today}T23:59:59`]
-    if (period === 'week') {
+    if (p === 'today') return [`${today}T00:00:00`, `${today}T23:59:59`]
+    if (p === 'week') {
       const d = new Date(now); d.setDate(d.getDate() - 7)
       return [d.toISOString(), now.toISOString()]
     }
-    if (period === 'month') {
+    if (p === 'month') {
       return [new Date(now.getFullYear(), now.getMonth(), 1).toISOString(), now.toISOString()]
     }
-    if (period === 'year') {
+    if (p === 'year') {
       return [new Date(now.getFullYear(), 0, 1).toISOString(), now.toISOString()]
     }
     return [null, null]
   }
 
-  const loadReports = async () => {
-    setLoading(true)
-    const [start, end] = getDateRange()
+  const { data: reportData, loading, error, refetch } = useFastQuery(
+    businessId ? `reports_${businessId}_${period}` : null,
+    async () => {
+      const [start, end] = getDateRange(period)
 
-    let invQ = supabase.from('invoices').select('id,total_amount,paid_amount,due_amount').eq('business_id', businessId)
-    if (start) invQ = invQ.gte('created_at', start).lte('created_at', end)
-    const { data: invoices } = await invQ
+      let invQ = supabase.from('invoices').select('id,total_amount,paid_amount,due_amount').eq('business_id', businessId)
+      if (start) invQ = invQ.gte('created_at', start).lte('created_at', end)
 
-    let custQ = supabase.from('customers').select('id,created_at').eq('business_id', businessId)
-    if (start) custQ = custQ.gte('created_at', start)
-    const { data: customers } = await custQ
+      let custQ = supabase.from('customers').select('id,created_at').eq('business_id', businessId)
+      if (start) custQ = custQ.gte('created_at', start)
 
-    let purchQ = supabase.from('purchases').select('total_amount').eq('business_id', businessId)
-    if (start) purchQ = purchQ.gte('created_at', start)
-    const { data: purchases } = await purchQ
+      let purchQ = supabase.from('purchases').select('total_amount').eq('business_id', businessId)
+      if (start) purchQ = purchQ.gte('created_at', start)
 
-    let itemsQ = supabase.from('invoice_items').select('product_name, quantity, item_total, invoice_id')
-    if (invoices?.length) itemsQ = itemsQ.in('invoice_id', invoices.map(i => i.id))
-    const { data: items } = invoices?.length ? await itemsQ : { data: [] }
+      const [invoicesRes, customersRes, purchasesRes] = await Promise.all([invQ, custQ, purchQ])
 
-    // Aggregate top products
-    const productMap = {}
-    ;(items || []).forEach(item => {
-      if (!productMap[item.product_name]) productMap[item.product_name] = { qty: 0, revenue: 0 }
-      productMap[item.product_name].qty += Number(item.quantity)
-      productMap[item.product_name].revenue += Number(item.item_total)
-    })
-    const topProducts = Object.entries(productMap)
-      .map(([name, v]) => ({ name, ...v }))
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 5)
+      const invoices = invoicesRes.data || []
+      const customers = customersRes.data || []
+      const purchases = purchasesRes.data || []
 
-    setData({
-      totalSales: (invoices || []).reduce((s, i) => s + Number(i.total_amount), 0),
-      totalPaid: (invoices || []).reduce((s, i) => s + Number(i.paid_amount), 0),
-      totalDue: (invoices || []).reduce((s, i) => s + Number(i.due_amount), 0),
-      invoiceCount: (invoices || []).length,
-      newCustomers: (customers || []).length,
-      totalPurchases: (purchases || []).reduce((s, p) => s + Number(p.total_amount), 0),
-      topProducts,
-    })
-    setLoading(false)
-  }
+      // Fetch invoice items for up to 100 recent invoices to prevent payload timeout
+      let items = []
+      if (invoices.length > 0) {
+        const invoiceIds = invoices.slice(0, 100).map(i => i.id)
+        const { data: fetchedItems } = await supabase
+          .from('invoice_items')
+          .select('product_name, quantity, item_total, invoice_id')
+          .in('invoice_id', invoiceIds)
+        items = fetchedItems || []
+      }
 
+      // Aggregate top products
+      const productMap = {}
+      items.forEach(item => {
+        if (!productMap[item.product_name]) productMap[item.product_name] = { qty: 0, revenue: 0 }
+        productMap[item.product_name].qty += Number(item.quantity)
+        productMap[item.product_name].revenue += Number(item.item_total)
+      })
+      const topProducts = Object.entries(productMap)
+        .map(([name, v]) => ({ name, ...v }))
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 5)
+
+      return {
+        totalSales: invoices.reduce((s, i) => s + Number(i.total_amount || 0), 0),
+        totalPaid: invoices.reduce((s, i) => s + Number(i.paid_amount || 0), 0),
+        totalDue: invoices.reduce((s, i) => s + Number(i.due_amount || 0), 0),
+        invoiceCount: invoices.length,
+        newCustomers: customers.length,
+        totalPurchases: purchases.reduce((s, p) => s + Number(p.total_amount || 0), 0),
+        topProducts,
+      }
+    },
+    { enabled: !!businessId, maxAge: 60000 }
+  )
+
+  const data = reportData || { totalSales: 0, totalDue: 0, totalPaid: 0, invoiceCount: 0, topProducts: [], newCustomers: 0, totalPurchases: 0 }
   const periodLabels = { today: "Today", week: "Last 7 Days", month: "This Month", year: "This Year" }
 
   return (
@@ -103,9 +111,14 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center h-48">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
+      {loading && !reportData ? (
+        <div className="space-y-4 animate-pulse">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div key={i} className="h-28 bg-slate-200 rounded-2xl" />
+            ))}
+          </div>
+          <div className="h-64 bg-slate-200 rounded-2xl" />
         </div>
       ) : (
         <>

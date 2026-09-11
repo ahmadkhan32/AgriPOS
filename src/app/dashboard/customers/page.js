@@ -1,42 +1,34 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useLanguage } from '@/context/LanguageContext'
 import { useAuth } from '@/context/AuthContext'
+import { useFastQuery, invalidateCache } from '@/lib/cache'
 
 export default function CustomersPage() {
   const { t, formatCurrency } = useLanguage()
   const { businessId } = useAuth()
-  const [customers, setCustomers] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [editingCustomer, setEditingCustomer] = useState(null)
   const [formData, setFormData] = useState({ name: '', phone: '', address: '' })
 
-  useEffect(() => {
-    let mounted = true
+  const { data: customersData, loading, error, refetch, setData: setCustomersData } = useFastQuery(
+    businessId ? `customers_${businessId}` : null,
+    async () => {
+      let q = supabase
+        .from('customers')
+        .select('id, name, phone, address, total_purchase, total_paid, total_due, business_id')
+        .order('name')
+      if (businessId) q = q.eq('business_id', businessId)
+      const { data, error } = await q
+      if (error) throw error
+      return data || []
+    },
+    { enabled: !!businessId, maxAge: 60000 }
+  )
 
-    const loadCustomers = async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        let q = supabase.from('customers').select('*').order('name')
-        if (businessId) q = q.eq('business_id', businessId)
-        const { data, error } = await q
-        if (error) throw error
-        if (mounted) setCustomers(data || [])
-      } catch (err) {
-        if (mounted) setError(err.message)
-      } finally {
-        if (mounted) setLoading(false)
-      }
-    }
-
-    loadCustomers()
-    return () => { mounted = false }
-  }, [businessId])
+  const customers = customersData || []
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -48,21 +40,14 @@ export default function CustomersPage() {
         const { error } = await supabase.from('customers').insert([{ ...formData, business_id: businessId }])
         if (error) throw error
       }
+      invalidateCache(`customers_${businessId}`)
+      invalidateCache(`dashboard_data_${businessId}`)
       setShowModal(false)
       resetForm()
-      loadCustomersAgain()
+      refetch()
     } catch (err) {
       alert(err.message)
     }
-  }
-
-  const loadCustomersAgain = async () => {
-    try {
-      let q = supabase.from('customers').select('*').order('name')
-      if (businessId) q = q.eq('business_id', businessId)
-      const { data } = await q
-      setCustomers(data || [])
-    } catch (err) { console.error(err) }
   }
 
   const handleEdit = (customer) => {
@@ -76,7 +61,9 @@ export default function CustomersPage() {
     try {
       const { error } = await supabase.from('customers').delete().eq('id', id)
       if (error) throw error
-      loadCustomersAgain()
+      invalidateCache(`customers_${businessId}`)
+      invalidateCache(`dashboard_data_${businessId}`)
+      setCustomersData(prev => (prev || []).filter(c => c.id !== id))
     } catch (err) {
       alert(err.message)
     }
@@ -87,19 +74,20 @@ export default function CustomersPage() {
     setFormData({ name: '', phone: '', address: '' })
   }
 
-  if (loading) {
+  if (loading && !customersData) {
     return (
-      <div className="flex items-center justify-center h-64" suppressHydrationWarning>
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" suppressHydrationWarning></div>
+      <div className="space-y-4 animate-pulse" suppressHydrationWarning>
+        <div className="h-10 w-48 bg-slate-200 rounded-lg" />
+        <div className="h-64 bg-slate-200 rounded-xl" />
       </div>
     )
   }
 
-  if (error) {
+  if (error && !customersData) {
     return (
       <div className="p-4 bg-red-50 text-red-600 rounded-lg" suppressHydrationWarning>
         Error: {error}
-        <button onClick={() => loadCustomersAgain()} className="ml-4 underline">Retry</button>
+        <button onClick={() => refetch()} className="ml-4 underline">Retry</button>
       </div>
     )
   }

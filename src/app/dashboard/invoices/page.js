@@ -1,50 +1,54 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
 import { useAuth } from '@/context/AuthContext'
+import { useFastQuery } from '@/lib/cache'
 import jsPDF from 'jspdf'
 
 export default function InvoicesPage() {
   const { t, formatCurrency } = useLanguage()
   const { businessId } = useAuth()
-  const [invoices, setInvoices] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
   const [selectedInvoice, setSelectedInvoice] = useState(null)
   const [invoiceItems, setInvoiceItems] = useState([])
-  const [shopSettings, setShopSettings] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
 
-  useEffect(() => {
-    let mounted = true
+  const { data: invoicesData, loading, error, refetch } = useFastQuery(
+    businessId ? `invoices_${businessId}` : null,
+    async () => {
+      const [invoicesRes, settingsRes] = await Promise.all([
+        supabase
+          .from('invoices')
+          .select('id, customer_name, customer_phone, customer_address, total_amount, paid_amount, due_amount, created_at, business_id')
+          .eq('business_id', businessId)
+          .order('created_at', { ascending: false }),
+        supabase.from('shop_settings').select('*').eq('business_id', businessId).limit(1)
+      ])
 
-    const loadData = async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        const [invoicesRes, settingsRes] = await Promise.all([
-          supabase.from('invoices').select('*').eq('business_id', businessId).order('created_at', { ascending: false }),
-          supabase.from('shop_settings').select('*').eq('business_id', businessId).limit(1)
-        ])
+      if (invoicesRes.error) throw invoicesRes.error
 
-        if (invoicesRes.error) throw invoicesRes.error
-        if (mounted) {
-          setInvoices(invoicesRes.data || [])
-          if (settingsRes.data?.length) setShopSettings(settingsRes.data[0])
-        }
-      } catch (err) {
-        if (mounted) setError(err.message)
-      } finally {
-        if (mounted) setLoading(false)
+      return {
+        invoices: invoicesRes.data || [],
+        shopSettings: settingsRes.data?.[0] || null,
       }
-    }
+    },
+    { enabled: !!businessId, maxAge: 30000 }
+  )
 
-    loadData()
-    return () => { mounted = false }
-  }, [])
+  const invoices = invoicesData?.invoices || []
+  const shopSettings = invoicesData?.shopSettings || null
+
+  const filteredInvoices = useMemo(() => {
+    if (!searchQuery.trim()) return invoices
+    const q = searchQuery.toLowerCase()
+    return invoices.filter(inv =>
+      (inv.customer_name || '').toLowerCase().includes(q) ||
+      (inv.customer_phone || '').toLowerCase().includes(q) ||
+      (inv.id || '').toLowerCase().includes(q)
+    )
+  }, [invoices, searchQuery])
 
   const loadInvoiceItems = async (invoiceId) => {
     const { data } = await supabase
@@ -59,17 +63,8 @@ export default function InvoicesPage() {
     await loadInvoiceItems(invoice.id)
   }
 
-  const searchInvoices = async (query) => {
+  const searchInvoices = (query) => {
     setSearchQuery(query)
-    if (query.length < 3) {
-      const { data } = await supabase.from('invoices').select('*').eq('business_id', businessId).order('created_at', { ascending: false })
-      setInvoices(data || [])
-      return
-    }
-    const { data } = await supabase.from('invoices').select('*').eq('business_id', businessId)
-      .or(`customer_phone.ilike.%${query}%,customer_name.ilike.%${query}%`)
-      .order('created_at', { ascending: false })
-    setInvoices(data || [])
   }
 
   const closeInvoice = () => {
@@ -157,18 +152,21 @@ export default function InvoicesPage() {
     doc.save(`invoice-${selectedInvoice.id.slice(0, 8)}.pdf`)
   }
 
-  if (loading) {
+  if (loading && !invoicesData) {
     return (
-      <div className="flex items-center justify-center h-64" suppressHydrationWarning>
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" suppressHydrationWarning></div>
+      <div className="space-y-4 animate-pulse" suppressHydrationWarning>
+        <div className="h-10 w-48 bg-slate-200 rounded-lg" />
+        <div className="h-10 w-80 bg-slate-200 rounded-lg" />
+        <div className="h-64 bg-slate-200 rounded-xl" />
       </div>
     )
   }
 
-  if (error) {
+  if (error && !invoicesData) {
     return (
       <div className="p-4 bg-red-50 text-red-600 rounded-lg" suppressHydrationWarning>
         Error: {error}
+        <button onClick={() => refetch()} className="ml-4 underline">Retry</button>
       </div>
     )
   }
@@ -187,13 +185,13 @@ export default function InvoicesPage() {
           type="text"
           value={searchQuery}
           onChange={(e) => searchInvoices(e.target.value)}
-          placeholder="Search by phone number or customer name..."
+          placeholder="Search by phone number, customer name, or ID..."
           className="w-full max-w-md px-4 py-2 border rounded-lg"
         />
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        {invoices.length === 0 ? (
+        {filteredInvoices.length === 0 ? (
           <div className="p-8 text-center text-slate-500">No invoices found</div>
         ) : (
           <table className="w-full">
@@ -210,7 +208,7 @@ export default function InvoicesPage() {
               </tr>
             </thead>
             <tbody>
-              {invoices.map((inv) => (
+              {filteredInvoices.map((inv) => (
                 <tr key={inv.id} className="border-t hover:bg-slate-50">
                   <td className="px-4 py-3 text-sm font-mono">#{inv.id.slice(0, 8).toUpperCase()}</td>
                   <td className="px-4 py-3 text-sm">{inv.customer_name || 'N/A'}</td>
