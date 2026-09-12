@@ -43,15 +43,13 @@ export function AuthProvider({ children }) {
   const [businessUser, setBusinessUser] = useState(null);
   const [permissions, setPermissions] = useState([]);
 
-  // Fast initial hydration from local cache
+  // Fast optimistic hydration from local cache
   useEffect(() => {
     const cached = getStoredAuthCache();
-    if (cached) {
+    if (cached?.user) {
+      setUser(cached.user);
       if (cached.businessUser) setBusinessUser(cached.businessUser);
       if (cached.permissions) setPermissions(cached.permissions);
-      if (cached.user) setUser(cached.user);
-      setLoading(false);
-      setInitialized(true);
     }
   }, []);
 
@@ -166,41 +164,42 @@ export function AuthProvider({ children }) {
         const { data: { session } } = await supabase.auth.getSession();
         if (mounted) {
           setSession(session);
-          setUser(session?.user ?? null);
-          if (session?.user) {
-            await loadBusinessUser(session.user);
+          const currentUser = session?.user ?? null;
+          setUser(currentUser);
+          if (currentUser) {
+            await loadBusinessUser(currentUser);
           } else {
+            setBusinessUser(null);
+            setPermissions([]);
             setStoredAuthCache(null);
           }
-          setInitialized(true);
-          setLoading(false);
         }
       } catch (err) {
         console.error("Auth init error:", err);
+      } finally {
         if (mounted) {
-          setLoading(false);
           setInitialized(true);
+          setLoading(false);
         }
       }
     };
 
     initAuth();
 
-    const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       if (!mounted) return;
-      if (event === "SIGNED_OUT") {
-        setSession(null);
-        setUser(null);
+      setSession(newSession);
+      const newUser = newSession?.user ?? null;
+      setUser(newUser);
+      if (event === "SIGNED_OUT" || !newUser) {
         setBusinessUser(null);
         setPermissions([]);
         setStoredAuthCache(null);
-      } else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await loadBusinessUser(session.user);
-        }
+      } else if (newUser) {
+        await loadBusinessUser(newUser);
       }
+      setLoading(false);
+      setInitialized(true);
     });
 
     return () => {
@@ -210,14 +209,24 @@ export function AuthProvider({ children }) {
   }, []);
 
   const signIn = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    setLoading(true);
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const { data, error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
+    if (error) {
+      setLoading(false);
+      throw error;
+    }
     if (data?.session) {
       setSession(data.session);
     }
     if (data?.user) {
       setUser(data.user);
-      await loadBusinessUser(data.user);
+      const bu = await loadBusinessUser(data.user);
+      setStoredAuthCache({
+        user: data.user,
+        businessUser: bu,
+        permissions: permissions
+      });
       setLoading(false);
       setInitialized(true);
     }

@@ -9,7 +9,7 @@ import { hasPermission, PERMISSIONS } from '@/lib/permissions'
 import {
   LayoutDashboard, FileText, Leaf, Users, ClipboardList, Package,
   Settings, PlusCircle, LogOut, Sprout, History, Menu, X, Truck,
-  ShoppingBag, BarChart3, UserCog, CreditCard, Building2
+  ShoppingBag, BarChart3, UserCog, CreditCard, Building2, Shield
 } from 'lucide-react'
 
 export default function DashboardLayout({ children }) {
@@ -227,14 +227,5 @@ export default function DashboardLayout({ children }) {
         </footer>
       </main>
     </div>
-  )
-}
-
-// Need to import Shield for roles menu
-function Shield({ size, className }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-    </svg>
   )
 }
