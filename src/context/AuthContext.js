@@ -61,13 +61,6 @@ export function AuthProvider({ children }) {
       setStoredAuthCache(null);
       return;
     }
-    // Super admin has no business user record
-    if (isSuperAdmin(authUser)) {
-      setBusinessUser(null);
-      setPermissions([]);
-      setStoredAuthCache({ user: authUser, businessUser: null, permissions: [] });
-      return;
-    }
 
     try {
       let { data: bu } = await supabase

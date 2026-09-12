@@ -25,11 +25,7 @@ export default function LoginPage() {
   useEffect(() => {
     if (!initialized) return
     if (user) {
-      if (checkSuperAdmin(user)) {
-        router.push('/super-admin')
-      } else {
-        router.push('/dashboard')
-      }
+      router.push('/dashboard')
     }
   }, [user, initialized, router])
 
@@ -37,20 +33,17 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      const data = await signIn(loginEmail, loginPassword)
-      const loggedUser = data?.user
-      const isSuper = checkSuperAdmin(loggedUser)
-      const destination = isSuper ? '/super-admin' : '/dashboard'
+      await signIn(loginEmail, loginPassword)
 
-      // Instant client transition
-      router.push(destination)
+      // Direct transition to /dashboard for all logins
+      router.push('/dashboard')
 
-      // Fallback reload if client transition is delayed
+      // Guaranteed fallback redirect if client transition takes longer
       setTimeout(() => {
-        if (typeof window !== 'undefined' && window.location.pathname === '/login') {
-          window.location.href = destination
+        if (typeof window !== 'undefined' && window.location.pathname.includes('/login')) {
+          window.location.href = '/dashboard'
         }
-      }, 600)
+      }, 400)
     } catch (err) {
       console.error('Login error:', err)
       setError(err.message || 'Login failed. Please check your credentials.')

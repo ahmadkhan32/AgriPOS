@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 
 export default function DashboardLayout({ children }) {
-  const { user, loading: authLoading, initialized, signOut, businessUser, business, isAdmin, permissions } = useAuth()
+  const { user, loading: authLoading, initialized, signOut, businessUser, business, isAdmin, isSuperAdmin, permissions } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
   const { t, language, toggleLanguage } = useLanguage()
@@ -83,11 +83,14 @@ export default function DashboardLayout({ children }) {
     if (can(PERMISSIONS.SETTINGS_VIEW)) {
       items.push({ href: '/dashboard/settings', label: t('settings'), icon: Settings })
     }
+    if (isSuperAdmin) {
+      items.push({ href: '/super-admin', label: 'Super Admin Portal', icon: Building2 })
+    }
     items.push({ href: '/dashboard/subscription', label: 'Subscription', icon: CreditCard, always: true })
 
     return items
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [t, isAdmin, permissions])
+  }, [t, isAdmin, isSuperAdmin, permissions])
 
   if (!hasMounted || authLoading || !initialized) {
     return (
