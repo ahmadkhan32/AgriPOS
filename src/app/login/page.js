@@ -25,12 +25,12 @@ export default function LoginPage() {
     if (!initialized) return
     if (user) {
       if (isSuperAdmin) {
-        router.replace('/super-admin')
-      } else if (businessUser) {
-        router.replace('/dashboard')
+        window.location.href = '/super-admin'
+      } else {
+        window.location.href = '/dashboard'
       }
     }
-  }, [user, businessUser, isSuperAdmin, initialized, router])
+  }, [user, isSuperAdmin, initialized])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -41,13 +41,13 @@ export default function LoginPage() {
       const loggedUser = data?.user
       const superAdminEmail = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL
       if (superAdminEmail && loggedUser?.email?.toLowerCase() === superAdminEmail.toLowerCase()) {
-        router.push('/super-admin')
+        window.location.href = '/super-admin'
       } else {
-        router.push('/dashboard')
+        window.location.href = '/dashboard'
       }
     } catch (err) {
+      console.error('Login error:', err)
       setError(err.message || 'Login failed. Please check your credentials.')
-    } finally {
       setLoading(false)
     }
   }

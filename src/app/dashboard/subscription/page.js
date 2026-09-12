@@ -25,7 +25,7 @@ export default function SubscriptionPage() {
   const loadData = async () => {
     setLoading(true)
     const [{ data: sub }, { data: users }, { data: prods }] = await Promise.all([
-      supabase.from('subscriptions').select('*').eq('business_id', businessId).eq('status', 'active').limit(1).single(),
+      supabase.from('subscriptions').select('*').eq('business_id', businessId).eq('status', 'active').limit(1).maybeSingle(),
       supabase.from('business_users').select('id').eq('business_id', businessId).eq('is_active', true),
       supabase.from('products').select('id').eq('business_id', businessId),
     ])
