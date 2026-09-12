@@ -5,7 +5,6 @@
 
 export function isSuperAdmin(user) {
   if (!user) return false
-  const superAdminEmail = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL
-  if (!superAdminEmail) return false
+  const superAdminEmail = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL || 'superadmin@agripos.com'
   return user.email?.toLowerCase() === superAdminEmail.toLowerCase()
 }
